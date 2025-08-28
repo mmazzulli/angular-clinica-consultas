@@ -48,6 +48,19 @@ CREATE TABLE `Appointment` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `RefreshToken` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `tokenHash` VARCHAR(191) NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `expiresAt` DATETIME(3) NOT NULL,
+    `revoked` BOOLEAN NOT NULL DEFAULT false,
+
+    INDEX `RefreshToken_userId_idx`(`userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `_MedicoSpecialties` (
     `A` INTEGER NOT NULL,
     `B` INTEGER NOT NULL,
@@ -64,6 +77,9 @@ ALTER TABLE `Appointment` ADD CONSTRAINT `Appointment_clientId_fkey` FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE `Appointment` ADD CONSTRAINT `Appointment_medicoId_fkey` FOREIGN KEY (`medicoId`) REFERENCES `User`(`userId`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `RefreshToken` ADD CONSTRAINT `RefreshToken_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`userId`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `_MedicoSpecialties` ADD CONSTRAINT `_MedicoSpecialties_A_fkey` FOREIGN KEY (`A`) REFERENCES `Specialty`(`specialtyId`) ON DELETE CASCADE ON UPDATE CASCADE;

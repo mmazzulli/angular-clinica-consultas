@@ -1,18 +1,15 @@
 {
   "name": "clinica-backend",
   "version": "1.0.0",
-  "description": "Backend para clínica de consultas",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon index.js",
-    "start": "node index.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+   "dev": "nodemon index.js",
+  "prisma": "prisma"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "description": "",
   "dependencies": {
     "@prisma/client": "^6.15.0",
     "bcrypt": "^6.0.0",
