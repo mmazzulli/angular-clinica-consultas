@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  superadmin
+  empresa
+  medico
+  cliente
+}
+
+enum AppointmentStatus {
+  scheduled
+  cancelled
+  completed
+  no_show
+  rescheduled
+}
+
+model User {
+  userId    Int    @id @default(autoincrement())
+  name      String
+  surname   String?
+  email     String @unique
+  password  String
+  role      Role   @default(cliente)
+
+  // 📱 Contatos e identificação
+  celular   String?
+  whatsapp  String?
+  nif       String?
+
+  // 👤 Informações pessoais
+  idade     Int?
+  genero    String?
+
+  // 👨‍⚕️ Dados opcionais de médico
+  crm       String?
+
+  // 🏢 Relação com empresa (self-relation)
+  empresaId   Int?
+  empresa     User?   @relation("EmpresaMedicos", fields: [empresaId], references: [userId])
+  medicos     User[]  @relation("EmpresaMedicos")
+
+  // 🔗 Relações
+  specialties           Specialty[]   @relation("MedicoSpecialties")
+  appointmentsAsClient  Appointment[] @relation("ClientAppointments")
+  appointmentsAsMedico  Appointment[] @relation("MedicoAppointments")
+
+  // ⏰ Sistema
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model Specialty {
+  specialtyId Int    @id @default(autoincrement())
+  name        String // Ex: Cardiologia, Estética, Dentista
+
+  // 🔗 Relações
+  medicos User[] @relation("MedicoSpecialties")
+}
+
+model Appointment {
+  appointmentId Int      @id @default(autoincrement())
+  startsAt      DateTime // Data/hora de início (UTC)
+  endsAt        DateTime?// Opcional, útil para duração variável
+  status        AppointmentStatus @default(scheduled)
+  notes         String?
+
+  // 🔗 Relações
+  clientId Int
+  medicoId Int
+
+  client   User @relation("ClientAppointments", fields: [clientId], references: [userId])
+  medico   User @relation("MedicoAppointments", fields: [medicoId], references: [userId])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Índices para performance e prevenção de conflitos (em slots fixos)
+  @@index([medicoId, startsAt])
+  @@index([clientId, startsAt])
+  @@unique([medicoId, startsAt]) // impede double-booking em slots discretos
+}
