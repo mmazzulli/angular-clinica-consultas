@@ -30,38 +30,38 @@ enum AppointmentStatus {
 }
 
 model User {
-  userId    Int    @id @default(autoincrement())
-  name      String
-  surname   String?
-  email     String @unique
-  password  String
-  role      Role   @default(cliente)
+  userId   Int     @id @default(autoincrement())
+  name     String
+  surname  String?
+  email    String  @unique
+  password String
+  role     Role    @default(cliente)
 
   // 📱 Contatos e identificação
-  celular   String?
-  whatsapp  String?
-  nif       String?
+  celular  String?
+  whatsapp String?
+  nif      String?
 
   // 👤 Informações pessoais
-  idade     Int?
-  genero    String?
+  idade  Int?
+  genero String?
 
   // 👨‍⚕️ Dados opcionais de médico
-  crm       String?
+  crm String?
 
   // 🏢 Relação com empresa (self-relation)
-  empresaId   Int?
-  empresa     User?   @relation("EmpresaMedicos", fields: [empresaId], references: [userId])
-  medicos     User[]  @relation("EmpresaMedicos")
+  empresaId Int?
+  empresa   User?  @relation("EmpresaMedicos", fields: [empresaId], references: [userId])
+  medicos   User[] @relation("EmpresaMedicos")
 
   // 🔗 Relações
-  specialties           Specialty[]   @relation("MedicoSpecialties")
-  appointmentsAsClient  Appointment[] @relation("ClientAppointments")
-  appointmentsAsMedico  Appointment[] @relation("MedicoAppointments")
+  specialties          Specialty[]   @relation("MedicoSpecialties")
+  appointmentsAsClient Appointment[] @relation("ClientAppointments")
+  appointmentsAsMedico Appointment[] @relation("MedicoAppointments")
 
   // ⏰ Sistema
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   // ⏩ RELAÇÃO COM REFRESH TOKENS (novo campo inverso)
@@ -77,9 +77,9 @@ model Specialty {
 }
 
 model Appointment {
-  appointmentId Int      @id @default(autoincrement())
+  appointmentId Int               @id @default(autoincrement())
   startsAt      DateTime // Data/hora de início (UTC)
-  endsAt        DateTime?// Opcional, útil para duração variável
+  endsAt        DateTime? // Opcional, útil para duração variável
   status        AppointmentStatus @default(scheduled)
   notes         String?
 
@@ -87,26 +87,26 @@ model Appointment {
   clientId Int
   medicoId Int
 
-  client   User @relation("ClientAppointments", fields: [clientId], references: [userId])
-  medico   User @relation("MedicoAppointments", fields: [medicoId], references: [userId])
+  client User @relation("ClientAppointments", fields: [clientId], references: [userId])
+  medico User @relation("MedicoAppointments", fields: [medicoId], references: [userId])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([medicoId, startsAt]) // impede double-booking em slots discretos
   // Índices para performance e prevenção de conflitos (em slots fixos)
   @@index([medicoId, startsAt])
   @@index([clientId, startsAt])
-  @@unique([medicoId, startsAt]) // impede double-booking em slots discretos
 }
 
 model RefreshToken {
-  id         Int      @id @default(autoincrement())
-  tokenHash  String
-  userId     Int
-  user       User     @relation(fields: [userId], references: [userId])  // lado 1
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
-  revoked    Boolean  @default(false)
+  id        Int      @id @default(autoincrement())
+  tokenHash String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [userId]) // lado 1
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
 
   @@index([userId])
 }
