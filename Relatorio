@@ -1,0 +1,377 @@
+
+Olá bom dia :) retomando de novo nossos estudos. Precisamos fazer uma checagem nos códigos para ver se está tudo coerente com a proposta e que as págnias estão se comunicando bem. Vou deixar umas info inicial para que sirva de parâmetro de uma análise bem aprofundada. As info acompanham algumas páginas essenciais para inicio de análise. Segue abaixo:   
+
+clinica-backend/
+│
+├── controllers/   
+│   ├── email.controller.js
+│   ├── user.controller.js         
+|   ├── appointment.controller.js
+|   ├── specialty.controller.js
+│
+├── routes/
+│   ├── auth.routes.js
+│   ├── email.routes.js
+│   ├── user.routes.js        
+|   ├── appointment.routes.js
+|   ├── specialty.routes.js
+|   ├── home.routes.js
+│
+├── services/
+│   ├── auth.service.js
+│   ├── email.service.js
+│   ├── user.service.js  
+|   ├── appointment.service.js
+|   ├── specialty.service.js       
+│
+│
+├── middleware.js/
+│   ├── auth.middleware.js
+│   ├── authorize.js     
+│
+├── prisma/
+│   └── client.js
+│   └── schema-prisma
+│
+├── utils/
+│   └── rbact.js
+│
+├── index.js
+└── .env
+
+
+PAGINAÇÃO
+O backend controla skip e take
+Todas as listagens devem ter paginação
+O 'superadmin' --> lista e CRUD de todos os roles e registros;
+'Empresa'      --> lista e CRUD de todos os roles e registros vinculados a esta empresa exceto o superadmin;
+'Medico'       --> lista e CRUD dele mesmo e dos clientes vinculados a ele e seus appointments;
+'cliente'      --> lista e CRUD dele mesmo com seus appointments
+
+
+EMAIL
+Quando o cliente cria um Appointment: envia email para o cliente corrente e para a empresa informando que o agendamento foi registrado, mas ainda sem médico vinculado.
+
+Quando o superadmin/empresa vincula um medicoId a um Appointment: envia email tanto para o cliente quanto para o médico.
+
+HIERARQUIA DO NOSSO RBAC:
+
+--superadmin:
+CRUD em absolutamente todas as tabelas e todos os roles.
+
+Pode gerenciar empresas, médicos, clientes, appointments, specialties, etc.
+
+Ninguém acima dele.
+
+--empresa:
+
+CRUD total sobre tudo que pertence à empresa:
+
+Médicos vinculados a ela.
+
+Clientes atendidos por seus médicos.
+
+Appointments de todos os médicos/clients da empresa.
+
+Especialidades da empresa.
+
+Não tem poder sobre o superadmin (não pode criar, editar ou deletar superadmins).
+
+--medico:
+
+CRUD apenas dos seus próprios appointments e dos clientes vinculados a ele.
+
+Não tem acesso a appointments de outros médicos.
+
+Não pode criar empresas nem mexer em outros médicos.
+
+--cliente:
+
+CRUD apenas dos seus próprios dados e dos seus próprios appointments.
+
+Inicialmente cria um appointment sem médico → empresa ou superadmin vinculam depois.
+
+Passa a enxergar o médico só após o vínculo.
+
+
+
+SIITUAÇÕES QUE JÁ HAVIAMOS COBERTO:
+Olha, olhando tudo que já fizemos no backend, o que já temos coberto:
+
+- Autenticação: login, logout, refresh token ✅
+
+- Controle de roles (RBAC): middleware authenticateToken + authorize ✅
+
+- CRUD completo de Specialties e Appointments ✅
+
+- Validações essenciais: horário de consultas, constraints do Prisma, tokens únicos ✅
+
+
+=====================
+
+README.md
+
+Clínica de Consultas - Agenda e Gestão
+Descrição do Projeto
+
+Esta é uma aplicação web desenvolvida para gerenciar uma clínica de saúde, permitindo controle de usuários, agendamentos de consultas e especialidades médicas. O objetivo principal é oferecer uma plataforma segura e organizada para:
+
+Registrar e gerenciar usuários (clientes, médicos, empresas e superadmins)
+
+Agendar, atualizar e cancelar consultas
+
+Controlar especialidades médicas e vincular médicos a elas
+
+Enviar notificações por email para clientes, médicos e empresas
+
+O projeto foi construído com Node.js, Express, Prisma e JWT para autenticação e controle de acesso baseado em roles (RBAC).
+
+Funcionalidades Implementadas
+1. Controle de Usuários
+
+Registro público de clientes (sign-up) sem token.
+
+Registro protegido de superadmins, empresas e médicos (necessário token).
+
+Login com geração de access token e refresh token.
+
+CRUD de usuários respeitando RBAC:
+
+Superadmin: acesso total.
+
+Empresa: CRUD exceto superadmins.
+
+Médico: CRUD próprio e de clientes vinculados.
+
+Cliente: apenas seu próprio cadastro.
+
+2. Agendamento de Consultas
+
+CRUD completo de consultas, com RBAC aplicado.
+
+Emails automáticos enviados ao criar ou atualizar consultas:
+
+Para clientes, médicos e empresas.
+
+Paginação para listagem de consultas.
+
+3. Especialidades Médicas
+
+CRUD de especialidades protegido por roles.
+
+Listagem de especialidades e médicos vinculados a cada especialidade.
+
+Paginação para listagens.
+
+4. Autenticação e Autorização
+
+JWT com access e refresh tokens.
+
+Middleware de autenticação global.
+
+Controle de acesso por roles (RBAC) para todas as operações críticas.
+
+5. Integração com Frontend
+
+Rotas e endpoints pensados para consumo por aplicações frontend (ex.: Angular).
+
+Tecnologias Utilizadas
+
+Backend: Node.js, Express
+
+Banco de dados: Prisma ORM com SQLite/PostgreSQL (configurável)
+
+Autenticação: JWT (access e refresh tokens)
+
+Segurança: Bcrypt para senhas, RBAC para controle de acesso
+
+Email: Nodemailer (para notificações de consultas)
+
+Ferramentas de teste: Insomnia/Postman
+
+Estrutura do Projeto
+/controllers   -> lógica de controle das rotas
+/services      -> regras de negócio e integração com Prisma
+/routes        -> definição das rotas da API
+/middleware    -> autenticação e autorização (RBAC)
+/prisma        -> client e models do banco de dados
+/index.js      -> ponto de entrada do servidor
+
+Como Testar
+
+Clonar o repositório
+
+Instalar dependências:
+
+npm install
+
+
+Configurar variáveis de ambiente no .env (JWT secrets, frontend origin, etc.)
+
+Rodar o servidor:
+
+npm run dev
+
+
+Testar endpoints com Insomnia ou Postman:
+
+POST /api/v1/register para sign-up de cliente
+
+POST /api/v1/login para obter tokens
+
+Usar token no header Authorization: Bearer <ACCESS_TOKEN> para CRUD protegido
+
+Observações
+
+Apenas o primeiro registro de cliente pode ser feito sem token.
+
+Todos os outros usuários e operações exigem autenticação via token.
+
+Emails de notificação são enviados em eventos de criação ou vinculação de consultas.
+
+
+=========================================
+
+
+1️⃣ Registro (Register)
+Status atual:
+
+auth.service.js register:
+
+Se não há req.user → é público, cria apenas cliente. ✅
+
+Se há req.user → só superadmin ou empresa podem criar outros roles (empresa, medico, cliente). ✅
+
+medico e cliente logados não podem criar outros usuários. ✅
+
+✅ Coerência com regra:
+
+O primeiro signup público do cliente funciona sem token.
+
+Após isso, qualquer ação de criação de usuários exige token e verifica o role.
+
+2️⃣ Login
+
+Todo usuário (incluindo cliente) precisa de token para autenticação. ✅
+
+O token é gerado após o login (login), mesmo para clientes.
+
+3️⃣ Middleware de autenticação
+
+auth.middleware.js → obriga token (authenticateToken). ✅
+
+authOptional.js → usado apenas no endpoint de register para permitir o primeiro signup público. ✅
+
+4️⃣ Authorize / RBAC
+
+authorize.js → garante que cada rota possa filtrar roles.
+
+Juntando com o RBAC definido em utils/rbac.js, temos:
+
+superadmin → CRUD completo. ✅
+
+empresa → CRUD exceto superadmin. ✅
+
+medico → CRUD próprio e clientes vinculados, appointments, specialty. ✅
+
+cliente → CRUD próprio. ✅
+
+5️⃣ Conclusão preliminar
+
+O fluxo de token está correto:
+
+Primeiro signup de cliente → público (sem token).
+
+Depois do primeiro login → token obrigatório.
+
+Todos os outros roles precisam de token para criar usuários.
+
+RBAC está coerente com a hierarquia que você descreveu.
+
+
+
+1️⃣ Appointment Controller & Service
+Pontos-chave:
+
+listAppointments e listAppointmentsService aplicam RBAC via buildAppointmentWhere ou canReadAppointment. ✅
+
+createAppointment / createAppointmentService checam permissão via canCreateAppointment. ✅
+
+updateAppointment / updateAppointmentService checam permissão via canUpdateAppointment. ✅
+
+deleteAppointment / deleteAppointmentService checam permissão via canDeleteAppointment. ✅
+
+Emails são disparados corretamente via notifyOnAppointmentCreated e notifyOnDoctorAssigned. ✅
+
+RBAC está coerente com sua regra:
+
+superadmin → acesso total.
+
+empresa → todos menos superadmin.
+
+medico → só seus appointments e clientes.
+
+cliente → só seus próprios appointments.
+
+❌ Observação: Se você quiser, podemos otimizar listAppointmentsService para filtrar diretamente na query do Prisma, evitando o filtro em memória, mas atualmente funciona.
+
+2️⃣ Specialty Controller & Service
+Pontos-chave:
+
+Controllers apenas chamam os services.
+
+Services (createSpecialty, updateSpecialty, deleteSpecialty) não verificam RBAC.
+
+Problema: Qualquer usuário autenticado poderia criar, atualizar ou deletar uma specialty, incluindo clientes.
+
+✅ Correção sugerida: aplicar middleware authenticateToken + authorize(['superadmin','empresa','medico']) nas rotas POST, PUT, DELETE.
+
+GET (listar, detalhes, médicos por specialty) pode ficar público ou apenas autenticado, conforme regra.
+
+3️⃣ User Controller & Service
+Pontos-chave:
+
+listUsers, createUser, updateUser, deleteUser chamam services correspondentes.
+
+Services implementam RBAC:
+
+superadmin → acesso total.
+
+empresa → todos menos superadmin.
+
+medico → só clientes vinculados.
+
+cliente → só ele mesmo.
+
+Criação de usuário:
+
+Cliente não pode criar usuários.
+
+Médico só pode criar clientes.
+
+Empresa não pode criar superadmin.
+✅ Tudo coerente.
+
+4️⃣ Token e Fluxo de Sign-Up
+
+Primeiro cliente → pode criar conta sem token (register).
+
+Após primeiro login → token passa a ser necessário para qualquer CRUD ou login subsequente. ✅
+
+Todos os roles precisam de token para logar ou acessar CRUDs. ✅
+
+
+-------------------
+
+✅ O que foi ajustado:
+
+Autenticação obrigatória (authenticateToken) para todas as rotas.
+
+Controle de roles (authorize) para operações de criação, atualização e deleção:
+
+Apenas superadmin, empresa e medico podem alterar specialties.
+
+Listagem e detalhes ficam acessíveis a qualquer usuário autenticado (inclusive clientes).
+
+--------------
+
