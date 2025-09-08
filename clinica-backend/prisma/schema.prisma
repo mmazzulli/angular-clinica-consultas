@@ -15,7 +15,8 @@ enum Role {
 }
 
 enum AppointmentStatus {
-  scheduled
+  pending      // cliente agendou, mas sem médico ainda
+  scheduled   // já tem médico, aguardando consulta
   cancelled
   completed
   no_show
@@ -64,22 +65,25 @@ model Appointment {
   appointmentId Int               @id @default(autoincrement())
   startsAt      DateTime
   endsAt        DateTime?
-  status        AppointmentStatus @default(scheduled)
+  status        AppointmentStatus @default(pending)
   notes         String?
 
   clientId Int
-  medicoId Int
+  medicoId Int?   // agora é opcional
 
   client User @relation("ClientAppointments", fields: [clientId], references: [userId])
-  medico User @relation("MedicoAppointments", fields: [medicoId], references: [userId])
+  medico User? @relation("MedicoAppointments", fields: [medicoId], references: [userId])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([medicoId, startsAt])
-  @@index([medicoId, startsAt])
-  @@index([clientId, startsAt])
+@@unique([medicoId, startsAt])    // impede que o mesmo médico tenha duas consultas no mesmo horário
+@@index([medicoId])               // otimiza consultas por médico
+@@index([clientId, startsAt])     // otimiza consultas por cliente ordenadas por horário
+
 }
+
+
 
 model RefreshToken {
   id        Int      @id @default(autoincrement())

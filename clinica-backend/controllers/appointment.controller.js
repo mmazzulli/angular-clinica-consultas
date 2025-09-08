@@ -1,91 +1,146 @@
-const appointmentService = require('../services/appointment.service');
+// controllers/appointment.controller.js
+const prisma = require('../prisma/client');
+const {
+  canCreateAppointment,
+  canUpdateAppointment,
+  canDeleteAppointment,
+  buildAppointmentWhere,
+} = require('../utils/rbac');
+const {
+  notifyOnAppointmentCreated,
+  notifyOnDoctorAssigned,
+} = require('./email.controller');
 
-class AppointmentController {
-  async create(req, res) {
-    try {
-      const { startsAt, endsAt, status, notes, clientId, medicoId } = req.body;
+/**
+ * Listar appointments com paginação e RBAC aplicado no banco
+ */
+async function listAppointments(req, res) {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      if (!startsAt || !clientId || !medicoId) {
-        return res.status(400).json({
-          message: 'Campos obrigatórios: startsAt, clientId, medicoId',
-        });
-      }
+    // aplica RBAC no filtro da query
+    const where = buildAppointmentWhere(req.user);
 
-      const appointment = await appointmentService.create({
-        startsAt: new Date(startsAt),
-        endsAt: endsAt ? new Date(endsAt) : null,
-        status,
-        notes,
-        clientId,
-        medicoId,
-      });
+    const [appointments, total] = await Promise.all([
+      prisma.appointment.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        include: { client: true, medico: true },
+        orderBy: { startsAt: 'desc' },
+      }),
+      prisma.appointment.count({ where }),
+    ]);
 
-      res.status(201).json(appointment);
-    } catch (error) {
-      console.error(error);
-
-      if (error.code === 'P2002') {
-        return res
-          .status(400)
-          .json({ message: 'Já existe consulta para este médico neste horário.' });
-      }
-
-      res.status(500).json({ message: 'Erro ao criar appointment' });
-    }
-  }
-
-  async findAll(req, res) {
-    try {
-      const appointments = await appointmentService.findAll();
-      res.json(appointments);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Erro ao buscar appointments' });
-    }
-  }
-
-  async findById(req, res) {
-    try {
-      const { id } = req.params;
-      const appointment = await appointmentService.findById(id);
-
-      if (!appointment) {
-        return res.status(404).json({ message: 'Appointment não encontrado' });
-      }
-
-      res.json(appointment);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Erro ao buscar appointment' });
-    }
-  }
-
-  async update(req, res) {
-    try {
-      const { id } = req.params;
-      const data = req.body;
-
-      if (data.startsAt) data.startsAt = new Date(data.startsAt);
-      if (data.endsAt) data.endsAt = new Date(data.endsAt);
-
-      const updated = await appointmentService.update(id, data);
-      res.json(updated);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Erro ao atualizar appointment' });
-    }
-  }
-
-  async delete(req, res) {
-    try {
-      const { id } = req.params;
-      await appointmentService.delete(id);
-      res.json({ message: 'Appointment deletado com sucesso' });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Erro ao deletar appointment' });
-    }
+    res.json({
+      data: appointments,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao listar appointments' });
   }
 }
 
-module.exports = new AppointmentController();
+/**
+ * Criar appointment
+ */
+async function createAppointment(req, res) {
+  try {
+    const data = req.body;
+
+    if (!canCreateAppointment(req.user, data)) {
+      return res.status(403).json({ message: 'Acesso negado' });
+    }
+
+    const appointment = await prisma.appointment.create({
+      data,
+      include: { client: true, medico: true, empresa: true },
+    });
+
+    // dispara emails (cliente + empresa)
+    await notifyOnAppointmentCreated(appointment);
+
+    res.status(201).json(appointment);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao criar appointment' });
+  }
+}
+
+/**
+ * Atualizar appointment
+ */
+async function updateAppointment(req, res) {
+  try {
+    const { id } = req.params;
+    const appointment = await prisma.appointment.findUnique({
+      where: { appointmentId: parseInt(id) },
+      include: { client: true, medico: true, empresa: true },
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment não encontrado' });
+    }
+
+    if (!canUpdateAppointment(req.user, appointment)) {
+      return res.status(403).json({ message: 'Acesso negado' });
+    }
+
+    const updated = await prisma.appointment.update({
+      where: { appointmentId: parseInt(id) },
+      data: req.body,
+      include: { client: true, medico: true, empresa: true },
+    });
+
+    // se médico foi vinculado agora → dispara emails (cliente + médico)
+    if (!appointment.medicoId && updated.medicoId) {
+      await notifyOnDoctorAssigned(updated);
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao atualizar appointment' });
+  }
+}
+
+/**
+ * Deletar appointment
+ */
+async function deleteAppointment(req, res) {
+  try {
+    const { id } = req.params;
+    const appointment = await prisma.appointment.findUnique({
+      where: { appointmentId: parseInt(id) },
+      include: { client: true, medico: true },
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment não encontrado' });
+    }
+
+    if (!canDeleteAppointment(req.user, appointment)) {
+      return res.status(403).json({ message: 'Acesso negado' });
+    }
+
+    await prisma.appointment.delete({
+      where: { appointmentId: parseInt(id) },
+    });
+
+    res.json({ message: 'Appointment deletado com sucesso' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao deletar appointment' });
+  }
+}
+
+module.exports = {
+  listAppointments,
+  createAppointment,
+  updateAppointment,
+  deleteAppointment,
+};
